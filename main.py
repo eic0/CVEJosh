@@ -3,6 +3,7 @@ from datetime import datetime
 import shodan
 import os
 from dotenv import load_dotenv
+import time
 
 load_dotenv()
 
@@ -62,38 +63,38 @@ def send_telegram_message(cve_info, shodan_results):
     message += f"<b>Vendor/Product:</b> {cve_info['vendor']}/{cve_info['product']}\n"
     message += f"<b>Summary:</b> {cve_info['summary']}\n"
     if shodan_results and shodan_results['total'] > 0:
-        message += "<b>Shodan-Ergebnisse:</b>\n"
+        message += "<b>Shodan-Results:</b>\n"
+        message += f"<b>Total:</b> {shodan_results['total']}\n"
         for result in shodan_results['matches'][:10]:  # Limit to 10 matches
             message += f"- {result['ip_str']}:{result['port']} {result['hostnames']} - OS: {result['os']} - {result['timestamp'][:10]}\n"
-    else:
-        message += "<i>No shodan results.</i>\n"
 
     send_text = 'https://api.telegram.org/bot' + telegram_bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=HTML&text=' + message
     requests.get(send_text)
 
 def main():
-    updated_cves = get_updated_cves()
+    while True:
+        updated_cves = get_updated_cves()
 
-    cve_info = {}
+        cve_info = {}
 
-    for cve in updated_cves:
-        cve_details = get_detailed_cve_info(cve['id'])
-        if 'vendors' in cve_details and cve_details['vendors']:
-            for vendor, products in cve_details['vendors'].items():
-                products_str = ", ".join(products)  # convert list to string
-                cve_info["id"] = cve_details['id']
-                cve_info["vendor"] = vendor
-                cve_info["product"] = products_str
-                cve_info["summary"] = cve_details['summary']
-                print(f"CVE ID: {cve_info['id']}, Vendor: {cve_info['vendor']}, Products: {cve_info['product']}, Summary: {cve_info['summary']}")
-                # search in shodan
-                for product in products:
-                    shodan_results = search_shodan(vendor, product)
-                    send_telegram_message(cve_info, shodan_results)
-        else:
-            pass # uncomment this line if you want to print CVEs without vendor information
-            # print(f"CVE ID: {cve_details['id']}, Summary: {cve_details['summary']}")
-            # send_telegram_message(cve_details, None)
+        for cve in updated_cves:
+            cve_details = get_detailed_cve_info(cve['id'])
+            if 'vendors' in cve_details and cve_details['vendors']:
+                for vendor, products in cve_details['vendors'].items():
+                    products_str = ", ".join(products)  # convert list to string
+                    cve_info["id"] = cve_details['id']
+                    cve_info["vendor"] = vendor
+                    cve_info["product"] = products_str
+                    cve_info["summary"] = cve_details['summary']
+                    print(f"CVE ID: {cve_info['id']}, Vendor: {cve_info['vendor']}, Products: {cve_info['product']}, Summary: {cve_info['summary']}")
+                    # search in shodan
+                    for product in products:
+                        shodan_results = search_shodan(vendor, product)
+                        send_telegram_message(cve_info, shodan_results)
+            else:
+                print(f"CVE ID: {cve_details['id']}, Summary: {cve_details['summary']}")
+                send_telegram_message(cve_details, None)
+        time.sleep(86400)
 
 if __name__ == "__main__":
     main()
