@@ -13,6 +13,9 @@ shodan_api_key = os.getenv("SHODAN_API_KEY")
 telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
 chat_id = os.getenv("TELEGRAM_CHAT_ID")
 
+# check if telegram is configured
+use_telegram = telegram_bot_token is not None and chat_id is not None
+
 # OpenCVE API base url .. replace if hosting own opencve instance
 base_url = "https://www.opencve.io/api/cve"
 
@@ -20,7 +23,8 @@ base_url = "https://www.opencve.io/api/cve"
 shodan_api = shodan.Shodan(shodan_api_key)
 
 # today's date
-today = datetime.now().strftime("%Y-%m-%d")
+#today = datetime.now().strftime("%Y-%m-%d")
+today = "2024-01-06" # for testing
 
 def get_updated_cves():
     # send get request to get all CVEs
@@ -46,13 +50,11 @@ def get_detailed_cve_info(cve_id):
 
 def search_shodan(vendor, product):
     try:
-        # Suchanfrage für Shodan
+        # search for vendor and product
         results = shodan_api.search(f"{vendor} {product}")
         print(f"Count of found hosts for {vendor} {product}: {results['total']}")
         for result in results['matches']:
             print(f"{result['ip_str']}:{result['port']} {result['hostnames']} - OS: {result['os']} - {result['timestamp'][:10]} ")
-            #print(result['data'])
-            #print('')
         return results
     except shodan.APIError as e:
         print(f"Error with Shodan-Search: {e}")
@@ -65,7 +67,7 @@ def send_telegram_message(cve_info, shodan_results):
     if shodan_results and shodan_results['total'] > 0:
         message += "<b>Shodan-Results:</b>\n"
         message += f"<b>Total:</b> {shodan_results['total']}\n"
-        for result in shodan_results['matches'][:10]:  # Limit to 10 matches
+        for result in shodan_results['matches'][:10]:  # limit to 10 matches
             message += f"- {result['ip_str']}:{result['port']} {result['hostnames']} - OS: {result['os']} - {result['timestamp'][:10]}\n"
 
     send_text = 'https://api.telegram.org/bot' + telegram_bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=HTML&text=' + message
@@ -87,14 +89,25 @@ def main():
                     cve_info["product"] = products_str
                     cve_info["summary"] = cve_details['summary']
                     print(f"CVE ID: {cve_info['id']}, Vendor: {cve_info['vendor']}, Products: {cve_info['product']}, Summary: {cve_info['summary']}")
-                    # search in shodan
                     for product in products:
                         shodan_results = search_shodan(vendor, product)
-                        send_telegram_message(cve_info, shodan_results)
+                        if use_telegram:
+                            send_telegram_message(cve_info, shodan_results)
             else:
-                print(f"CVE ID: {cve_details['id']}, Summary: {cve_details['summary']}")
-                send_telegram_message(cve_details, None)
-        time.sleep(86400)
+                # comment if you want to get all CVEs (also without vendor/product)
+                continue
+                cve_info["id"] = cve_details['id']
+                cve_info["vendor"] = ""
+                cve_info["product"] = ""
+                cve_info["summary"] = cve_details['summary']
+                print(f"CVE ID: {cve_info['id']}, Summary: {cve_info['summary']}")
+                if use_telegram:
+                    send_telegram_message(cve_info, None)
+        try:
+            time.sleep(86400) # wait 24 hours ... not the best solution, but whatever
+        except KeyboardInterrupt:
+            print("bye")
+            break
 
 if __name__ == "__main__":
     main()
