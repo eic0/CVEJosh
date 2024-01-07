@@ -13,7 +13,8 @@ Additionally it'll also send you a telegram message if you prodive a telegram bo
 
 ## Usage:
 - python main.py
-    - it'll run and update daily.
+    - It'll run and update daily. 
+    - ! It will only give you the CVEs of the current day, so running it early in the morning won't give you much.
 
 ## Docker:
 - docker build -t cvejosh .

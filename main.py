@@ -23,8 +23,7 @@ base_url = "https://www.opencve.io/api/cve"
 shodan_api = shodan.Shodan(shodan_api_key)
 
 # today's date
-#today = datetime.now().strftime("%Y-%m-%d")
-today = "2024-01-06" # for testing
+today = datetime.now().strftime("%Y-%m-%d")
 
 def get_updated_cves():
     # send get request to get all CVEs
