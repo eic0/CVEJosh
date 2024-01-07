@@ -1,5 +1,5 @@
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import shodan
 import os
 from dotenv import load_dotenv
@@ -22,8 +22,8 @@ base_url = "https://www.opencve.io/api/cve"
 # include shodan key in API
 shodan_api = shodan.Shodan(shodan_api_key)
 
-# today's date
-today = datetime.now().strftime("%Y-%m-%d")
+# get last 24 hours
+time_limit = datetime.now() - timedelta(days=1)
 
 def get_updated_cves():
     # send get request to get all CVEs
@@ -34,7 +34,12 @@ def get_updated_cves():
 
     # filter cves only today
     all_cves = response.json()
-    updated_cves = [cve for cve in all_cves if cve['updated_at'].startswith(today)]
+    updated_cves = []
+
+    for cve in all_cves:
+        updated_at = datetime.strptime(cve['updated_at'], "%Y-%m-%dT%H:%M:%SZ")
+        if updated_at > time_limit:
+            updated_cves.append(cve)
 
     return updated_cves
 
