@@ -52,11 +52,11 @@ def get_detailed_cve_info(cve_id):
 
     return detailed_response.json()
 
-def search_shodan(vendor, product):
+def search_shodan(search_string):
     try:
         # search for vendor and product
-        results = shodan_api.search(f"{vendor} {product}")
-        print(f"Count of found hosts for {vendor} {product}: {results['total']}")
+        results = shodan_api.search(f"{search_string}")
+        print(f"Count of found hosts for {search_string}: {results['total']}")
         for result in results['matches']:
             print(f"{result['ip_str']}:{result['port']} {result['hostnames']} - OS: {result['os']} - {result['timestamp'][:10]} ")
         return results
@@ -81,32 +81,28 @@ def main():
     while True:
         updated_cves = get_updated_cves()
 
-        cve_info = {}
 
         for cve in updated_cves:
             cve_details = get_detailed_cve_info(cve['id'])
-            if 'vendors' in cve_details and cve_details['vendors']:
+
+            # get all infos for the cve into one dict
+            cve_info = {
+                "id": cve_details.get('id', ''),
+                "vendor": '',
+                "product": '',
+                "summary": cve_details.get('summary', '')
+            }
+
+            if 'vendors' in cve_details and cve_details['vendors']: # if vendor/products is given
                 for vendor, products in cve_details['vendors'].items():
                     products_str = ", ".join(products)  # convert list to string
-                    cve_info["id"] = cve_details['id']
                     cve_info["vendor"] = vendor
                     cve_info["product"] = products_str
-                    cve_info["summary"] = cve_details['summary']
-                    print(f"CVE ID: {cve_info['id']}, Vendor: {cve_info['vendor']}, Products: {cve_info['product']}, Summary: {cve_info['summary']}")
-                    for product in products:
-                        shodan_results = search_shodan(vendor, product)
-                        if use_telegram:
-                            send_telegram_message(cve_info, shodan_results)
-            else:
-                # comment if you want to get all CVEs (also without vendor/product)
-                continue
-                cve_info["id"] = cve_details['id']
-                cve_info["vendor"] = ""
-                cve_info["product"] = ""
-                cve_info["summary"] = cve_details['summary']
-                print(f"CVE ID: {cve_info['id']}, Summary: {cve_info['summary']}")
-                if use_telegram:
-                    send_telegram_message(cve_info, None)
+
+            print(f"CVE ID: {cve_info['id']}, Vendor: {cve_info['vendor']}, Products: {cve_info['product']}, Summary: {cve_info['summary']}")
+            shodan_results = search_shodan("vuln:" +  cve_info["id"])
+            if use_telegram and shodan_results['total'] > 0:
+                    send_telegram_message(cve_info, shodan_results)   
         try:
             time.sleep(86400) # wait 24 hours ... not the best solution, but whatever
         except KeyboardInterrupt:
