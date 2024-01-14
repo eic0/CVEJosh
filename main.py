@@ -62,7 +62,7 @@ def search_shodan(search_string):
         return results
     except shodan.APIError as e:
         print(f"Error with Shodan-Search: {e}")
-        return None
+        return {'total':0}
 
 def send_telegram_message(cve_info, shodan_results):
     message = f"<b>CVE ID:</b> {cve_info['id']}\n"
