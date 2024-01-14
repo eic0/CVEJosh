@@ -101,8 +101,10 @@ def main():
 
             print(f"CVE ID: {cve_info['id']}, Vendor: {cve_info['vendor']}, Products: {cve_info['product']}, Summary: {cve_info['summary']}")
             shodan_results = search_shodan("vuln:" +  cve_info["id"])
+            if shodan_results['total'] < 1: # if shodan doesn't find anything related to that CVE, check if it can find anything about the vendor/product
+                shodan_results = search_shodan(cve_info['vendor'] + " " + cve_info['product'])
             if use_telegram and shodan_results['total'] > 0:
-                    send_telegram_message(cve_info, shodan_results)   
+                    send_telegram_message(cve_info, shodan_results)
         try:
             time.sleep(86400) # wait 24 hours ... not the best solution, but whatever
         except KeyboardInterrupt:
