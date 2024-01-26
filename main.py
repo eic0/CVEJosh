@@ -32,7 +32,7 @@ def get_updated_cves():
         print("Error with request:", response.status_code)
         return []
 
-    # filter cves only today
+    # filter cves from last 24 hours
     all_cves = response.json()
     updated_cves = []
 
