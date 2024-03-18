@@ -77,7 +77,7 @@ def search_shodan(search_string):
         logger.warning(f"Error with Shodan-Search: {e}")
         return {'total':0}
 
-def send_telegram_message(cve_info, shodan_results):
+def send_shodan_results(cve_info, shodan_results):
     message = f"<b>CVE ID:</b> {cve_info['id']}\n"
     message += f"<b>Vendor/Product:</b> {cve_info['vendor']}/{cve_info['product']}\n"
     message += f"<b>Summary:</b> {cve_info['summary']}\n"
@@ -87,14 +87,9 @@ def send_telegram_message(cve_info, shodan_results):
         for result in shodan_results['matches'][:10]:  # limit to 10 matches
             message += f"- {result['ip_str']}:{result['port']} {result['hostnames']} - OS: {result['os']} - {result['timestamp'][:10]}\n"
 
-    send_text = 'https://api.telegram.org/bot' + telegram_bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=HTML&text=' + message
-    response = requests.get(send_text)
-    if response.status_code != 200:
-        logger.error(f"Error while sending Message: {response}")
-    else: 
-        logger.info("**Sent message**")
+    send_telegram_message(message)
 
-def send_plain_telegram_message(message):
+def send_telegram_message(message):
     send_text = 'https://api.telegram.org/bot' + telegram_bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=HTML&text=' + message
     response = requests.get(send_text)
     if response.status_code != 200:
@@ -108,14 +103,14 @@ def send_cve_summary(message):
     
     if message_length <= MAX_LENGTH:
         # Wenn die Nachricht 3000 Zeichen oder weniger hat, sende sie direkt.
-        send_plain_telegram_message(message)
+        send_telegram_message(message)
     else:
         # Wenn die Nachricht länger als 3000 Zeichen ist, teile sie in Blöcke.
         for start in range(0, message_length, MAX_LENGTH):
             # Erstelle einen Block von maximal 3000 Zeichen.
             message_block = message[start:start + MAX_LENGTH]
             # Sende den Block.
-            send_plain_telegram_message(message_block)
+            send_telegram_message(message_block)
 
 def main():
 
@@ -159,7 +154,7 @@ def main():
             else:
                 shodan_results = search_shodan(cve_info['vendor'] + " " + cve_info['product'])
             if use_telegram and shodan_results['total'] > 0:
-                    send_telegram_message(cve_info, shodan_results)
+                    send_shodan_results(cve_info, shodan_results)
             collected_cves += f"CVE ID: {cve_info['id']},{cve_info['vendor']},{cve_info['product']}\nSummary: {cve_info['summary']}\n-------------------------\n"
         if send_cve_summary:
             send_cve_summary('CVE SUMMARY:\n' + collected_cves)
