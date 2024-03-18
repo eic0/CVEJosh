@@ -16,5 +16,5 @@ Additionally it'll also send you a telegram message if you prodive a telegram bo
     - It'll run and update daily. 
 
 ## Docker:
-- docker build -t cvejosh .
-- docker run -d --name CVEJosh --env-file .env cvejosh
+- docker build -t cvejoshcon .
+- docker run -d --name CVEJosh --env-file .env cvejoshcon

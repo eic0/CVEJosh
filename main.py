@@ -4,6 +4,10 @@ import shodan
 import os
 from dotenv import load_dotenv
 import time
+import logging
+
+# configure logging
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -33,6 +37,7 @@ def get_updated_cves():
     response = requests.get(base_url, auth=(username, password))
     if response.status_code != 200:
         print("Error with request:", response.status_code)
+        logger.warning("Error with request:", response.status_code)
         return []
 
     # filter cves from last 24 hours
@@ -51,6 +56,7 @@ def get_detailed_cve_info(cve_id):
     detailed_response = requests.get(f"{base_url}/{cve_id}", auth=(username, password))
     if detailed_response.status_code != 200:
         print(f"Fehler bei der Anfrage für CVE {cve_id}:", detailed_response.status_code)
+        logger.warning(f"Fehler bei der Anfrage für CVE {cve_id}:", detailed_response.status_code)
         return None
 
     return detailed_response.json()
@@ -60,11 +66,14 @@ def search_shodan(search_string):
         # search for vendor and product
         results = shodan_api.search(f"{search_string}")
         print(f"Count of found hosts for {search_string}: {results['total']}")
+        logger.info(f"Count of found hosts for {search_string}: {results['total']}")
         for result in results['matches']:
             print(f"{result['ip_str']}:{result['port']} {result['hostnames']} - OS: {result['os']} - {result['timestamp'][:10]} ")
+            logger.info(f"{result['ip_str']}:{result['port']} {result['hostnames']} - OS: {result['os']} - {result['timestamp'][:10]} ")
         return results
     except shodan.APIError as e:
         print(f"Error with Shodan-Search: {e}")
+        logger.warning(f"Error with Shodan-Search: {e}")
         return {'total':0}
 
 def send_telegram_message(cve_info, shodan_results):
@@ -79,8 +88,13 @@ def send_telegram_message(cve_info, shodan_results):
 
     send_text = 'https://api.telegram.org/bot' + telegram_bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=HTML&text=' + message
     requests.get(send_text)
+    logger.info("**Sent message**")
 
 def main():
+
+    # define logging file
+    logging.basicConfig(filename='cvejosh.log', level=logging.INFO)
+    logger.info("**Started**")
     while True:
         updated_cves = get_updated_cves()
 
@@ -103,6 +117,7 @@ def main():
                     cve_info["product"] = products_str
 
             print(f"CVE ID: {cve_info['id']}, Vendor: {cve_info['vendor']}, Products: {cve_info['product']}, Summary: {cve_info['summary']}")
+            logger.info(f"CVE ID: {cve_info['id']}, Vendor: {cve_info['vendor']}, Products: {cve_info['product']}, Summary: {cve_info['summary']}")
             if upgraded_shodan: # if the usage of vuln is possible
                 shodan_results = search_shodan("vuln:" +  cve_info["id"])
                 if shodan_results['total'] < 1: # if shodan doesn't find anything related to that CVE, check if it can find anything about the vendor/product
@@ -115,6 +130,7 @@ def main():
             time.sleep(86400) # wait 24 hours ... not the best solution, but whatever
         except KeyboardInterrupt:
             print("bye")
+            logger.info("Stopped")
             break
 
 if __name__ == "__main__":
