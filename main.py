@@ -16,6 +16,9 @@ chat_id = os.getenv("TELEGRAM_CHAT_ID")
 # check if telegram is configured
 use_telegram = telegram_bot_token is not None and chat_id is not None
 
+# shodan upgraded api for vuln tag?
+upgraded_shodan = False
+
 # OpenCVE API base url .. replace if hosting own opencve instance
 base_url = "https://www.opencve.io/api/cve"
 
@@ -100,8 +103,11 @@ def main():
                     cve_info["product"] = products_str
 
             print(f"CVE ID: {cve_info['id']}, Vendor: {cve_info['vendor']}, Products: {cve_info['product']}, Summary: {cve_info['summary']}")
-            shodan_results = search_shodan("vuln:" +  cve_info["id"])
-            if shodan_results['total'] < 1: # if shodan doesn't find anything related to that CVE, check if it can find anything about the vendor/product
+            if upgraded_shodan: # if the usage of vuln is possible
+                shodan_results = search_shodan("vuln:" +  cve_info["id"])
+                if shodan_results['total'] < 1: # if shodan doesn't find anything related to that CVE, check if it can find anything about the vendor/product
+                    shodan_results = search_shodan(cve_info['vendor'] + " " + cve_info['product'])
+            else:
                 shodan_results = search_shodan(cve_info['vendor'] + " " + cve_info['product'])
             if use_telegram and shodan_results['total'] > 0:
                     send_telegram_message(cve_info, shodan_results)
