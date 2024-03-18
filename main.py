@@ -23,6 +23,9 @@ use_telegram = telegram_bot_token is not None and chat_id is not None
 # shodan upgraded api for vuln tag?
 upgraded_shodan = False
 
+# send daily cve summary?
+send_cve_summary = True
+
 # OpenCVE API base url .. replace if hosting own opencve instance
 base_url = "https://www.opencve.io/api/cve"
 
@@ -90,6 +93,11 @@ def send_telegram_message(cve_info, shodan_results):
     requests.get(send_text)
     logger.info("**Sent message**")
 
+def send_plain_telegram_message(message):
+    send_text = 'https://api.telegram.org/bot' + telegram_bot_token + '/sendMessage?chat_id=' + chat_id + '&parse_mode=HTML&text=' + 'CVE SUMMARY:\n' + message
+    requests.get(send_text)
+    logger.info("**Sent message**")
+
 def main():
 
     # define logging file
@@ -97,7 +105,7 @@ def main():
     logger.info("**Started**")
     while True:
         updated_cves = get_updated_cves()
-
+        collected_cves =  ""
 
         for cve in updated_cves:
             cve_details = get_detailed_cve_info(cve['id'])
@@ -107,7 +115,7 @@ def main():
                 "id": cve_details.get('id', ''),
                 "vendor": '',
                 "product": '',
-                "summary": cve_details.get('summary', '')
+                "summary": cve_details.get('summary', '')[0:150]
             }
 
             if 'vendors' in cve_details and cve_details['vendors']: # if vendor/products is given
@@ -126,6 +134,11 @@ def main():
                 shodan_results = search_shodan(cve_info['vendor'] + " " + cve_info['product'])
             if use_telegram and shodan_results['total'] > 0:
                     send_telegram_message(cve_info, shodan_results)
+            collected_cves += f"CVE ID: {cve_info['id']},{cve_info['vendor']},{cve_info['product']}\nSummary: {cve_info['summary']}\n-------------------------\n"
+        if send_cve_summary:
+            send_plain_telegram_message(collected_cves)
+
+            
         try:
             time.sleep(86400) # wait 24 hours ... not the best solution, but whatever
         except KeyboardInterrupt:
